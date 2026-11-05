@@ -23,6 +23,42 @@ sys.path.insert(0, str(SCRIPTS))
 import agent_slim  # noqa: E402
 
 
+# ClawHub 的发布器会跳过任何含点号路径段的文件，安装副本里这些隐藏 fixture
+# 文件只能由测试在运行期补齐；本地源码树里它们已存在时保持不变。
+HIDDEN_FIXTURE_FILES = {
+    "skills/.usage.json": {
+        "skills": {
+            "alpha": {"lastUsedAt": "2026-10-20T10:00:00Z"},
+            "beta": {"lastUsedAt": "2026-10-21T10:00:00Z"},
+            "gamma": {"lastUsedAt": "2026-10-22T10:00:00Z"},
+        }
+    },
+    "plugins/cache/test-market/plug-a/1.0.0/.mcp.json": {
+        "mcpServers": {
+            "fixture-tools": {
+                "enabled": True,
+                "tools": {"list_items": {}, "read_item": {}},
+            }
+        }
+    },
+    "plugins/cache/test-market/plug-a/1.0.0/.app.json": {
+        "apps": {"fixture-app": {"required": False}}
+    },
+}
+
+
+def ensure_hidden_fixture_files(home: Path) -> None:
+    """Recreate dot-path fixture files that a ClawHub install cannot carry."""
+    for rel, payload in HIDDEN_FIXTURE_FILES.items():
+        path = home / rel
+        if path.is_file():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+
+
 def tree_digest(root: Path):
     """Snapshot path metadata without opening fixture file contents."""
     result = {}
@@ -38,6 +74,7 @@ class AuditTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="agent-slim-test-")
         self.home = Path(self.temp.name) / "home"
         shutil.copytree(FIXTURE, self.home)
+        ensure_hidden_fixture_files(self.home)
         self.now = datetime(2026, 11, 5, 12, 0, tzinfo=timezone.utc)
         old = (self.now - timedelta(days=120)).timestamp()
         recent = (self.now - timedelta(days=1)).timestamp()

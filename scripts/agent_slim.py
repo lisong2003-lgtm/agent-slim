@@ -26,7 +26,7 @@ except ImportError as exc:  # pragma: no cover - packaging failure is an IO erro
     raise SystemExit("agent_slim_workflow.py and agent_slim_adapter.py are required next to agent_slim.py") from exc
 
 SCHEMA_VERSION = "1.0"
-TOOL_VERSION = "0.1.1"
+TOOL_VERSION = "0.1.2"
 DEFAULT_MAX_DEPTH = 8
 TOKENS_PER_CHAR = 0.6
 MAX_TEXT_BYTES = 8 * 1024 * 1024

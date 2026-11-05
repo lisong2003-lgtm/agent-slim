@@ -4,11 +4,11 @@
 
 ## 安装（三平台）
 
-三个平台使用同一 slug `agent-slim`，当前版本 `0.1.1`。
+三个平台使用同一 slug `agent-slim`，当前版本 `0.1.2`。
 
 | 平台 | 安装方式 | 适用 |
 | --- | --- | --- |
-| GitHub | 下载 [agent-slim-github-v0.1.1.zip](https://github.com/lisong2003-lgtm/agent-slim/releases/tag/v0.1.1)，解压后运行 `python3 scripts/agent_slim.py --version` | 完整包，含测试与构建脚本 |
+| GitHub | 下载 [agent-slim-github-v0.1.2.zip](https://github.com/lisong2003-lgtm/agent-slim/releases/tag/v0.1.2)，解压后运行 `python3 scripts/agent_slim.py --version` | 完整包，含测试与构建脚本 |
 | SkillHub | `skillhub install agent-slim --namespace user_43faedd6 --dir "${CODEX_HOME:-$HOME/.codex}/skills"` | Codex 用户，轻量文本包 |
 | ClawHub | `clawhub --dir "${CODEX_HOME:-$HOME/.codex}/skills" install agent-slim` | ClawHub / OpenClaw 用户 |
 
@@ -62,7 +62,7 @@ python3 scripts/agent_slim.py restore --manifest <transaction>/manifest.json --a
 - s4 已完成职责适配与合成老化环境端到端：能力三态、30 个用户 Skill、100 个会话、三类可执行动作和全量恢复证据。
 - s5 已完成 Ponytail 与技能架构师审查、发布元数据和三平台发布包；包内共享文件逐字节一致。
 - 真实宿主 test-prompts 仍未提供，触发/路由回归只能记 `PARTIAL`；不得把 fixture 结果写成真实宿主 PASS。
-- GitHub、SkillHub、ClawHub 已发布 v0.1.1；审核、公开回查、隔离安装和恢复测试见 `outputs/final-delivery.md`。
+- GitHub、SkillHub、ClawHub 已发布 v0.1.2；审核、公开回查、隔离安装和恢复测试见 `outputs/final-delivery.md`。
 - 发布包内测试可离线运行：`python3 -m unittest discover -s tests`（fixture 随包提供，不再依赖本机生成物）。
 
 ## 文档入口

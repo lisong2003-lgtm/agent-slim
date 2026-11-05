@@ -22,7 +22,7 @@ Dry-run by default; three move actions only (quarantine redundant backup, archiv
 
 ## Status
 
-v0.1.1 is published on GitHub, SkillHub and ClawHub. Codex is the first host with an audit/plan/apply/verify/restore implementation verified on a synthetic aging fixture; real-host trigger regression is still `PARTIAL` until executable test prompts are supplied. Other agents are interface-only. Install from GitHub Releases, `skillhub install agent-slim --namespace user_43faedd6`, or `clawhub install agent-slim`.
+v0.1.2 is published on GitHub, SkillHub and ClawHub. Codex is the first host with an audit/plan/apply/verify/restore implementation verified on a synthetic aging fixture; real-host trigger regression is still `PARTIAL` until executable test prompts are supplied. Other agents are interface-only. Install from GitHub Releases, `skillhub install agent-slim --namespace user_43faedd6`, or `clawhub install agent-slim`.
 
 ## Documentation
 

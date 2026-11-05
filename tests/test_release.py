@@ -45,11 +45,17 @@ class ReleaseMetadataTests(unittest.TestCase):
 
     def test_publishable_files_match_github_package(self):
         data = manifest()
-        listed = set(data["publishableFiles"])
+        listed_all = set(data["publishableFiles"])
+        missing = {rel for rel in listed_all if not (ROOT / rel).is_file()}
+        # ClawHub 安装副本由发布器生成，而发布器跳过路径里带点号的隐藏文件；
+        # 只允许这类文件缺失，其他缺失仍然是清单与打包不一致。
+        self.assertTrue(
+            all(any(part.startswith(".") for part in Path(rel).parts) for rel in missing),
+            sorted(missing),
+        )
+        listed = listed_all - missing
         packaged = set(package_files("github"))
         self.assertEqual(listed, packaged)
-        missing = sorted(rel for rel in listed if not (ROOT / rel).is_file())
-        self.assertEqual(missing, [])
 
     def test_packages_exclude_internal_paths(self):
         for platform in ("github", "skillhub", "clawhub"):

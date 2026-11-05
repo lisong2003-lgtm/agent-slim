@@ -3,7 +3,7 @@
   "name": "agent-slim",
   "slug": "agent-slim",
   "displayName": "Agent 整体瘦身师",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "status": "release-candidate",
   "phase": "s7-release-delivery",
   "author": "lis",
@@ -81,10 +81,10 @@
     ]
   },
   "release": {
-    "version": "0.1.1",
+    "version": "0.1.2",
     "packages": {
       "github": {
-        "prefix": "agent-slim-0.1.1/",
+        "prefix": "agent-slim-0.1.2/",
         "include": [
           "SKILL.md",
           "README.md",

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.2 — 2026-11-05
+
+可移植性修复版。功能、安全边界和发布包内容规则不变，只修“ClawHub 安装副本跑不通随包测试”。
+
+### 修复
+
+- ClawHub 发布器会跳过任何含点号路径段的文件，`tests/fixtures/aging-agent` 里的 `.mcp.json`、`.app.json`、`.usage.json` 因此进不了安装副本，导致安装后 `python3 -m unittest discover -s tests` 出现 2 项失败。`tests/test_audit.py` 现在会在拷贝 fixture 后按内联内容补齐这三个隐藏文件。
+- `tests/test_release.py` 的清单一致性检查允许“隐藏文件缺失”，但仍要求其余清单项与 GitHub 包完全一致，避免掩盖真实缺件。
+
+### 验证
+
+- 剥离全部点号路径文件模拟 ClawHub 安装副本后，`python3 -m unittest discover -s tests` 33 tests OK。
+- 三个平台安装副本与源码 `scripts/agent_slim.py` 的 SHA-256 一致。
+
 ## 0.1.1 — 2026-11-05
 
 发布后回查修复版。0.1.0 的功能与安全边界不变，仅修复“发布包内测试不能独立运行”和文档状态。
