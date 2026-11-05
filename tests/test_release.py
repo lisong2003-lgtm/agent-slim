@@ -69,6 +69,13 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertIn("scripts/build_release.py", skillhub)
         self.assertIn("scripts/make_icons.py", skillhub)
 
+    def test_skillhub_layout_uses_license_md(self):
+        spec = manifest()["release"]["packages"]["skillhub"]
+        layout = [arc for _, arc in build_release.apply_renames(
+            build_release.collect(spec["include"], spec.get("exclude", [])), spec.get("renames", {}))]
+        self.assertIn("LICENSE.md", layout)
+        self.assertNotIn("LICENSE", layout)
+
     def test_no_private_paths_or_secrets_in_package(self):
         for rel in package_files("github"):
             path = ROOT / rel

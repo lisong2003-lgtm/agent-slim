@@ -129,7 +129,10 @@
           "**/__pycache__/**",
           "**/*.pyc",
           "**/.DS_Store"
-        ]
+        ],
+        "renames": {
+          "LICENSE": "LICENSE.md"
+        }
       },
       "clawhub": {
         "prefix": "",

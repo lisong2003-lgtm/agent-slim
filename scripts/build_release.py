@@ -59,15 +59,20 @@ def check_skill(skill_text: str, version: str) -> None:
         raise SystemExit("SKILL.md version does not match manifest")
 
 
-def build_zip(target: Path, files: List[str], prefix: str) -> Dict:
+def apply_renames(files: List[str], renames: Dict[str, str]) -> List[tuple]:
+    """Map source paths to archive paths; platform-only renames never touch the source tree."""
+    return [(rel, renames.get(rel, rel)) for rel in files]
+
+
+def build_zip(target: Path, items: List[tuple], prefix: str) -> Dict:
     target.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
-        for rel in files:
-            info = zipfile.ZipInfo((prefix + rel) if prefix else rel, date_time=FIXED_TIME)
+        for src, arc in items:
+            info = zipfile.ZipInfo((prefix + arc) if prefix else arc, date_time=FIXED_TIME)
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
-            archive.writestr(info, (ROOT / rel).read_bytes())
-    return {"name": target.name, "files": len(files), "bytes": target.stat().st_size, "sha256": sha256(target)}
+            archive.writestr(info, (ROOT / src).read_bytes())
+    return {"name": target.name, "files": len(items), "bytes": target.stat().st_size, "sha256": sha256(target)}
 
 
 def main() -> int:
@@ -90,7 +95,8 @@ def main() -> int:
         if missing:
             raise SystemExit("{} package misses {}".format(platform, ", ".join(missing)))
         filename = "agent-slim-{}-v{}.zip".format(platform, version)
-        results.append(build_zip(out / filename, files, spec.get("prefix", "")))
+        items = apply_renames(files, spec.get("renames", {}))
+        results.append(build_zip(out / filename, items, spec.get("prefix", "")))
 
     sums = out / "SHA256SUMS.txt"
     sums.write_text("".join("{}  {}\n".format(item["sha256"], item["name"]) for item in results), encoding="utf-8")
