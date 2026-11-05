@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.1 — 2026-11-05
+
+发布后回查修复版。0.1.0 的功能与安全边界不变，仅修复“发布包内测试不能独立运行”和文档状态。
+
+### 修复
+
+- `tests/fixtures/aging-agent` 之前被 `.gitignore` 排除且未随包发布，导致干净安装后运行 `python3 -m unittest discover -s tests` 时 `test_audit` / `test_workflow` 共 13 项报 `FileNotFoundError`。fixture 现随仓库和 GitHub/ClawHub 包发布，SkillHub 轻量包仍不含 tests。
+- `.gitignore` 不再忽略该合成 fixture；它只含生成数据，无用户、项目或公司内容。
+
+### 文档
+
+- README 增加 GitHub / SkillHub / ClawHub 三平台安装入口、版本和 SHA-256 核对方式。
+- 更新“当前状态”：三平台已发布 v0.1.1，并保留真实宿主触发回归 `PARTIAL` 的说明。
+
+### 验证
+
+- 本机与公开包隔离目录均执行 `python3 -m unittest discover -s tests`：33 tests OK。
+- 公开包 fixture 端到端：180 个文件 apply 后 `restore --apply` 全部复原（SHA-256、大小、mode、mtime 一致），二次恢复返回 `already-restored`。
+
 ## 0.1.0 — 2026-11-05
 
 首次公开发布（release candidate）。

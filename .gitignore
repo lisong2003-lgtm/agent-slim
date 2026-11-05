@@ -13,4 +13,3 @@ outputs/
 AGENTS.md
 prompts/
 tests/validate_s1.py
-tests/fixtures/aging-agent/

@@ -2,6 +2,22 @@
 
 给使用一段时间后的 Agent 做一次“体检 + 可逆减负”：先找出真正占用每轮上下文的常驻内容，再把低频资料移到按需加载区，最后用回归测试证明关键能力还在。
 
+## 安装（三平台）
+
+三个平台使用同一 slug `agent-slim`，当前版本 `0.1.1`。
+
+| 平台 | 安装方式 | 适用 |
+| --- | --- | --- |
+| GitHub | 下载 [agent-slim-github-v0.1.1.zip](https://github.com/lisong2003-lgtm/agent-slim/releases/tag/v0.1.1)，解压后运行 `python3 scripts/agent_slim.py --version` | 完整包，含测试与构建脚本 |
+| SkillHub | `skillhub install agent-slim --namespace user_43faedd6 --dir "${CODEX_HOME:-$HOME/.codex}/skills"` | Codex 用户，轻量文本包 |
+| ClawHub | `clawhub --dir "${CODEX_HOME:-$HOME/.codex}/skills" install agent-slim` | ClawHub / OpenClaw 用户 |
+
+GitHub 包的 SHA-256 以 Release 附件 `SHA256SUMS.txt` 为准；下载后执行 `shasum -a 256 -c SHA256SUMS.txt` 核对。安装后先跑只读命令：
+
+```sh
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/agent-slim/scripts/agent_slim.py" audit --help
+```
+
 ## 5 分钟快速使用
 
 1. **圈定范围**：说明要瘦身哪个 Agent、哪些项目或 Skill、哪些内容不能动。
@@ -46,7 +62,8 @@ python3 scripts/agent_slim.py restore --manifest <transaction>/manifest.json --a
 - s4 已完成职责适配与合成老化环境端到端：能力三态、30 个用户 Skill、100 个会话、三类可执行动作和全量恢复证据。
 - s5 已完成 Ponytail 与技能架构师审查、发布元数据和三平台发布包；包内共享文件逐字节一致。
 - 真实宿主 test-prompts 仍未提供，触发/路由回归只能记 `PARTIAL`；不得把 fixture 结果写成真实宿主 PASS。
-- GitHub、SkillHub、ClawHub 尚未发布；审核和公开状态确认前不宣称已发布。
+- GitHub、SkillHub、ClawHub 已发布 v0.1.1；审核、公开回查、隔离安装和恢复测试见 `outputs/final-delivery.md`。
+- 发布包内测试可离线运行：`python3 -m unittest discover -s tests`（fixture 随包提供，不再依赖本机生成物）。
 
 ## 文档入口
 

@@ -2,7 +2,7 @@
 name: agent-slim
 slug: agent-slim
 displayName: Agent 整体瘦身师
-version: 0.1.0
+version: 0.1.1
 status: release-candidate
 platforms: [macos, windows, linux]
 author: lis

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "fixture-tools": {
+      "enabled": true,
+      "tools": {
+        "list_items": {},
+        "read_item": {}
+      }
+    }
+  }
+}
