@@ -118,8 +118,6 @@
           "LICENSE",
           "NOTICE.md",
           "manifest.json",
-          "agents",
-          "icons",
           "docs",
           "references",
           "schemas",
@@ -132,7 +130,8 @@
         ],
         "renames": {
           "LICENSE": "LICENSE.md"
-        }
+        },
+        "platformNotes": "SkillHub 不接收 png 等二进制文件：不打包 icons/ 与 agents/openai.yaml；LICENSE 重命名为 LICENSE.md。图标由平台侧上传维护。"
       },
       "clawhub": {
         "prefix": "",
