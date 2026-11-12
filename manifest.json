@@ -3,12 +3,12 @@
   "name": "agent-slim",
   "slug": "agent-slim",
   "displayName": "Agent 整体瘦身师",
-  "version": "0.1.2",
-  "status": "release-candidate",
-  "phase": "s7-release-delivery",
+  "version": "0.2.0",
+  "status": "released",
+  "phase": "s8-injection-gate",
   "author": "lis",
   "license": "MIT",
-  "description": "对使用中的 Agent 做跨维度、只读优先、可逆的整体瘦身，减少不必要的上下文 Token，并用回归与回滚保证能力不回退。",
+  "description": "Agent 瘦身：盘点、注入测量、发布闸门、回滚；不删原件。",
   "entrypoints": {
     "skill": "SKILL.md",
     "readme": "README.md",
@@ -25,7 +25,11 @@
     "routingIndex": "references/routing-index.md",
     "planSchema": "schemas/plan.schema.json",
     "transactionManifestSchema": "schemas/transaction-manifest.schema.json",
-    "verificationSchema": "schemas/verification.schema.json"
+    "verificationSchema": "schemas/verification.schema.json",
+    "injectionDocs": "docs/injection-measurement.md",
+    "injectionBaseline": "references/baseline-20261109.json",
+    "injectionBudgets": "references/budgets.md",
+    "mcpMeasure": "references/mcp-measure.md"
   },
   "hosts": {
     "codex": {
@@ -72,7 +76,8 @@
       "python3 -m unittest discover -s tests -p 'test_*.py' -v",
       "python3 tests/validate_s1.py",
       "for f in schemas/*.json; do python3 -m json.tool \"$f\" >/dev/null || exit 1; done",
-      "python3 scripts/build_release.py --json"
+      "python3 scripts/build_release.py --json",
+      "python3 scripts/self_test.py"
     ],
     "schemas": [
       "schemas/plan.schema.json",
@@ -81,10 +86,10 @@
     ]
   },
   "release": {
-    "version": "0.1.2",
+    "version": "0.2.0",
     "packages": {
       "github": {
-        "prefix": "agent-slim-0.1.2/",
+        "prefix": "agent-slim-0.2.0/",
         "include": [
           "SKILL.md",
           "README.md",
@@ -171,6 +176,7 @@
     "docs/architecture.md",
     "docs/audit-json-contract.md",
     "docs/execution-contract.md",
+    "docs/injection-measurement.md",
     "docs/safety.md",
     "docs/usage.md",
     "icons/icon_large.png",
@@ -178,8 +184,11 @@
     "manifest.json",
     "references/README.md",
     "references/adapter-contract.md",
+    "references/baseline-20261109.json",
+    "references/budgets.md",
     "references/context-model.md",
     "references/integration-routing.md",
+    "references/mcp-measure.md",
     "references/routing-index.md",
     "schemas/plan.schema.json",
     "schemas/transaction-manifest.schema.json",
@@ -188,8 +197,15 @@
     "scripts/agent_slim.py",
     "scripts/agent_slim_adapter.py",
     "scripts/agent_slim_workflow.py",
+    "scripts/budget_dashboard.py",
     "scripts/build_release.py",
+    "scripts/injection_state.py",
     "scripts/make_icons.py",
+    "scripts/mcp_probe.py",
+    "scripts/measure_prompt.py",
+    "scripts/scan_layers.py",
+    "scripts/self_test.py",
+    "scripts/token_experiment.py",
     "tests/fixtures/aging-agent/AGENTS.md",
     "tests/fixtures/aging-agent/archived_sessions/old-archive.jsonl.zst",
     "tests/fixtures/aging-agent/backups/snapshot.zip",
@@ -220,6 +236,7 @@
     "tests/fixtures/sample-inventory.json",
     "tests/test_adapter.py",
     "tests/test_audit.py",
+    "tests/test_injection_gate.py",
     "tests/test_release.py",
     "tests/test_s4_e2e.py",
     "tests/test_workflow.py"
@@ -228,5 +245,19 @@
     "compress-validated-description",
     "route-large-skill-body",
     "disable-explicitly-unused-optional-plugin"
-  ]
+  ],
+  "injectionGate": {
+    "enabled": true,
+    "appliesTo": "any new or changed skill before publish",
+    "descriptionMaxChars": 45,
+    "skillMaxBytes": 8192,
+    "textGateBytes": 57344,
+    "commands": [
+      "python3 scripts/injection_state.py --record",
+      "python3 scripts/injection_state.py --check",
+      "python3 scripts/measure_prompt.py --gate 57344",
+      "python3 scripts/self_test.py"
+    ],
+    "unknownPolicy": "UNMEASURED and UNKNOWN must not be reported as PASS"
+  }
 }

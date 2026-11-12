@@ -4,11 +4,11 @@
 
 ## 安装（三平台）
 
-三个平台使用同一 slug `agent-slim`，当前版本 `0.1.2`。
+三个平台使用同一 slug `agent-slim`，当前版本 `0.2.0`。
 
 | 平台 | 安装方式 | 适用 |
 | --- | --- | --- |
-| GitHub | 下载 [agent-slim-github-v0.1.2.zip](https://github.com/lisong2003-lgtm/agent-slim/releases/tag/v0.1.2)，解压后运行 `python3 scripts/agent_slim.py --version` | 完整包，含测试与构建脚本 |
+| GitHub | 下载 [agent-slim-github-v0.2.0.zip](https://github.com/lisong2003-lgtm/agent-slim/releases/tag/v0.2.0)，解压后运行 `python3 scripts/agent_slim.py --version` | 完整包，含测试与构建脚本 |
 | SkillHub | `skillhub install agent-slim --namespace user_43faedd6 --dir "${CODEX_HOME:-$HOME/.codex}/skills"` | Codex 用户，轻量文本包 |
 | ClawHub | `clawhub --dir "${CODEX_HOME:-$HOME/.codex}/skills" install agent-slim` | ClawHub / OpenClaw 用户 |
 
@@ -33,6 +33,19 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/agent-slim/scripts/agent_slim.py" au
 分别报告 Hot、Warm、Cold 三层、Token 与磁盘收益、风险等级和回滚方式。
 不要修改任何文件，等我确认计划。
 ```
+
+## 发布前瘦身闸门
+
+0.2.0 起，任何 Skill 新增或修改，发布前都要过同一道闸门：
+
+```sh
+python3 scripts/injection_state.py --record
+python3 scripts/injection_state.py --check      # 必须 overall: OK
+python3 scripts/measure_prompt.py --gate 57344  # 文本七块必须 PASS
+python3 scripts/self_test.py                    # 必须 ALL PASS
+```
+
+硬指标：`description` ≤45 字、`SKILL.md` 目标 ≤8 KB、文本块 ≤57,344 B、`check_integration` 与 `check_release` 全过。`UNMEASURED` 不是 PASS，`UNKNOWN` 不是已支持。
 
 ## 安全执行流程
 
@@ -62,7 +75,7 @@ python3 scripts/agent_slim.py restore --manifest <transaction>/manifest.json --a
 - s4 已完成职责适配与合成老化环境端到端：能力三态、30 个用户 Skill、100 个会话、三类可执行动作和全量恢复证据。
 - s5 已完成 Ponytail 与技能架构师审查、发布元数据和三平台发布包；包内共享文件逐字节一致。
 - 真实宿主 test-prompts 仍未提供，触发/路由回归只能记 `PARTIAL`；不得把 fixture 结果写成真实宿主 PASS。
-- GitHub、SkillHub、ClawHub 已发布 v0.1.2；审核、公开回查、隔离安装和恢复测试见 `outputs/final-delivery.md`。
+- v0.2.0 为三平台公开版本，新增注入测量、漂移状态机与发布闸门；发布回查记录见 `outputs/s5-release-ready.md`。
 - 发布包内测试可离线运行：`python3 -m unittest discover -s tests`（fixture 随包提供，不再依赖本机生成物）。
 
 ## 文档入口
@@ -73,6 +86,7 @@ python3 scripts/agent_slim.py restore --manifest <transaction>/manifest.json --a
 - [安全边界](docs/safety.md)
 - [执行契约](docs/execution-contract.md)
 - [验收标准](docs/acceptance.md)
+- [固定注入测量与发布闸门](docs/injection-measurement.md)
 - [审计 JSON 契约](docs/audit-json-contract.md)
 - [适配器契约](references/adapter-contract.md)
 - [职责路由与调用契约](references/integration-routing.md)

@@ -117,3 +117,23 @@ python3 scripts/agent_slim.py restore --manifest <transaction>/manifest.json --a
 - `PASS`：目标状态、哈希、保留文件、引用、结构与调用方提供的回归全部通过。
 - `FAIL`：关键检查失败；先恢复，再修复并重跑。
 - `PARTIAL`：缺少 test-prompts，路由能力未实测；不能作为发布或“能力未回退”的完整证据。
+
+## 9. 固定注入测量与发布闸门
+
+0.2.0 新增一组只读命令，用于 Codex 固定注入测量和 Skill 发布前闸门。完整口径见 `docs/injection-measurement.md`。
+
+```sh
+python3 scripts/measure_prompt.py --gate 57344
+python3 scripts/injection_state.py --check
+python3 scripts/injection_state.py --record
+python3 scripts/injection_state.py --check
+python3 scripts/scan_layers.py --summary
+python3 scripts/budget_dashboard.py --no-measure --out /tmp/budget.md
+python3 scripts/mcp_probe.py --stdio --name svc -- <启动命令>
+python3 scripts/token_experiment.py --help
+python3 scripts/self_test.py
+```
+
+发布前必须全过：`description` ≤45 字、`SKILL.md` 目标 ≤8 KB、文本块闸门 PASS、状态机 `overall: OK`、`self_test.py` ALL PASS。`UNMEASURED` 和 `UNKNOWN` 不得写成 PASS。
+
+这些命令不修改记忆、AGENTS、rules、插件缓存、MCP 配置、provider 或认证；`injection_state.py --record` 只更新状态文件，并在写前自动备份。

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXED_TIME = (2026, 11, 5, 0, 0, 0)
+FIXED_TIME = (2026, 11, 10, 0, 0, 0)
 
 
 def sha256(path: Path) -> str:

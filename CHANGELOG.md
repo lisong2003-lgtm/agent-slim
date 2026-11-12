@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.2.0 — 2026-11-10
+
+注入测量与发布闸门版。保留 0.1.x 的整体盘点、可逆执行和回滚能力，新增 Codex 固定注入的只读测量、漂移状态机和发布前瘦身闸门。
+
+### 新增
+
+- `scripts/measure_prompt.py`：测量七块固定注入，按 `--gate 57344` 判定文本块是否超预算；超限退出 1。
+- `scripts/injection_state.py`：记录源文件指纹与当前注入块，区分 `OK / DRIFT / BODY_CHANGED / MISSING / UNMEASURED`；写状态前自动备份。
+- `scripts/mcp_probe.py`：只测 MCP `tools/list` 的 schema 字节，不记录 token、请求头、请求体或提示词。
+- `scripts/scan_layers.py`：四层规则去重与冲突候选，只报告，不自动合并。
+- `scripts/budget_dashboard.py`：七块预算看板，明确区分文本块、MCP 占位和 App 整体 `UNMEASURED`。
+- `scripts/token_experiment.py`：首请求 input 观测，固定 `billing_claim=false`，不把观测写成账单节省。
+- `scripts/self_test.py`：七块对账、gate 正反例、状态机 DRIFT、看板求和和 token 过滤的自测。
+- `docs/injection-measurement.md`：七块口径、状态机、发布闸门、隐私边界和已知限制。
+
+### 图标
+
+- `icons/icon_large.png`（512）与 `icons/icon_small.png`（128）改为 Skill 系列蓝图蓝标：深蓝底 `#0A1F3C` + 青蓝线 `#4AD3FF` + 网格底纹，图元为三层收窄的上下文块 + 量尺 + 收窄箭头。
+- `scripts/make_icons.py` 重写为纯标准库渲染器（有符号距离抗锯齿），可离线复现同款图标，不再依赖 PIL。
+- SkillHub 图标走平台图标上传接口，`iconUrl` 随发布 payload 提交；包内不含二进制图标。
+
+### 发布闸门
+
+新增或修改 Skill 发布前必须全过：
+
+- `description` 单条 ≤45 字。
+- `SKILL.md` 目标 ≤8 KB；超出外移到 `references/`，只搬不删。
+- `injection_state.py --record` 后 `--check` 返回 `overall: OK`。
+- `measure_prompt.py --gate 57344` 文本块 PASS。
+- `self_test.py` 全部 PASS。
+- `check_integration`、`check_release` 和包内测试通过。
+
+`UNMEASURED` 和 `UNKNOWN` 不得写成 PASS。
+
+### 修复
+
+- 修复干净克隆后 `tests/fixtures/aging-agent/AGENTS.md` 被 `.gitignore` 排除、导致 33 项测试中 2 项失败的问题；现在 fixture 明确重新纳入版本控制。
+- 发布脚本固定时间戳更新为 2026-11-10，三平台包可复现构建。
+- 新增脚本和文档去除个人绝对路径与 Codex Home 字面量，统一使用 `CODEX_HOME`。
+- 基线 JSON 的 `source_file` 改为通用占位，`source_mtime` 清空，保留字节与哈希口径。
+
+### 兼容性
+
+Python 3.9+，仅标准库。0.1.x 的 `agent_slim.py` 命令、manifest、事务和恢复脚本保持兼容；新增测量命令独立，不影响既有审计与执行路径。
+
 ## 0.1.2 — 2026-11-05
 
 可移植性修复版。功能、安全边界和发布包内容规则不变，只修“ClawHub 安装副本跑不通随包测试”。

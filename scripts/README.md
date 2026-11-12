@@ -27,3 +27,21 @@ python3 scripts/agent_slim.py restore --manifest <transaction>/manifest.json --a
 - 缺少 test-prompts 时，路由回归只能 PARTIAL，不伪造 PASS。
 
 完整契约见 `docs/execution-contract.md`。
+
+## 注入测量与闸门
+
+- `measure_prompt.py`：七块固定注入测量与 57,344 B 文本块闸门。
+- `injection_state.py`：源文件指纹与注入块状态机，区分 `OK / DRIFT / BODY_CHANGED / MISSING`。
+- `mcp_probe.py`：只测 MCP `tools/list` schema 字节，不记录 token、请求头、请求体或提示词。
+- `scan_layers.py`：记忆、AGENTS、rules、lessons 四层去重与冲突候选，只报告。
+- `budget_dashboard.py`：七块预算看板，区分文本块、MCP 占位与 App 整体 `UNMEASURED`。
+- `token_experiment.py`：首请求 input 观测，不是账单；固定 `billing_claim=false`。
+- `self_test.py`：七块对账、gate 正反例、状态机 DRIFT、看板求和和 token 过滤的自测。
+
+```sh
+python3 scripts/measure_prompt.py --gate 57344
+python3 scripts/injection_state.py --check
+python3 scripts/self_test.py
+```
+
+这些脚本只读源文件与 `tools/list` schema；`injection_state.py --record` 只写状态文件并在写前备份。完整说明见 `docs/injection-measurement.md`。
