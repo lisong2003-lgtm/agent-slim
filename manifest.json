@@ -3,45 +3,58 @@
   "name": "agent-slim",
   "slug": "agent-slim",
   "displayName": "Agent 整体瘦身师",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "status": "released",
-  "phase": "s8-injection-gate",
+  "phase": "s9-generic-host",
   "author": "lis",
   "license": "MIT",
   "description": "Agent 瘦身：盘点、注入测量、发布闸门、回滚；不删原件。",
   "entrypoints": {
-    "skill": "SKILL.md",
-    "readme": "README.md",
-    "readmeEn": "README.en.md",
-    "interface": "agents/openai.yaml",
-    "usage": "docs/usage.md",
-    "architecture": "docs/architecture.md",
-    "safety": "docs/safety.md",
     "acceptance": "docs/acceptance.md",
-    "auditContract": "docs/audit-json-contract.md",
-    "executionContract": "docs/execution-contract.md",
     "adapterContract": "references/adapter-contract.md",
-    "integrationRouting": "references/integration-routing.md",
-    "routingIndex": "references/routing-index.md",
-    "planSchema": "schemas/plan.schema.json",
-    "transactionManifestSchema": "schemas/transaction-manifest.schema.json",
-    "verificationSchema": "schemas/verification.schema.json",
-    "injectionDocs": "docs/injection-measurement.md",
+    "architecture": "docs/architecture.md",
+    "auditContract": "docs/audit-json-contract.md",
+    "caseStudy": "references/case-workbuddy.md",
+    "executionContract": "docs/execution-contract.md",
+    "genericPlaybook": "references/generic-playbook.md",
     "injectionBaseline": "references/baseline-20261109.json",
     "injectionBudgets": "references/budgets.md",
-    "mcpMeasure": "references/mcp-measure.md"
+    "injectionDocs": "docs/injection-measurement.md",
+    "integrationRouting": "references/integration-routing.md",
+    "interface": "agents/openai.yaml",
+    "layoutSchema": "schemas/layout.schema.json",
+    "mcpMeasure": "references/mcp-measure.md",
+    "measurement": "references/measurement.md",
+    "planSchema": "schemas/plan.schema.json",
+    "readme": "README.md",
+    "readmeEn": "README.en.md",
+    "routingIndex": "references/routing-index.md",
+    "safety": "docs/safety.md",
+    "skill": "SKILL.md",
+    "transactionManifestSchema": "schemas/transaction-manifest.schema.json",
+    "usage": "docs/usage.md",
+    "verificationSchema": "schemas/verification.schema.json"
   },
   "hosts": {
     "codex": {
-      "role": "first-host",
+      "role": "builtin-layout",
       "implementation": "audit-plan-apply-verify-restore",
       "verified": true,
       "verifiedScope": "s4-synthetic-aging-e2e-host-adapter; real-host-test-prompts-pending"
     },
-    "other-agents": {
-      "role": "adapter-interface-only",
-      "implementation": "adapter-interface-only",
-      "verified": false
+    "workbuddy": {
+      "role": "builtin-layout",
+      "implementation": "audit-plan-apply-verify-restore",
+      "verified": true,
+      "verifiedScope": "2026-11-17: host detection, cjk-slug fix, layout inventory, apply-verify-restore hash loop",
+      "guide": "references/case-workbuddy.md"
+    },
+    "described": {
+      "role": "generic-layout-file",
+      "implementation": "audit-plan-apply-verify-restore",
+      "verified": true,
+      "verifiedScope": "layout-driven audit verified on a second host; any agent can be described without code changes",
+      "guide": "docs/usage.md"
     }
   },
   "defaultMode": "dry-run",
@@ -80,16 +93,17 @@
       "python3 scripts/self_test.py"
     ],
     "schemas": [
+      "schemas/layout.schema.json",
       "schemas/plan.schema.json",
       "schemas/transaction-manifest.schema.json",
       "schemas/verification.schema.json"
     ]
   },
   "release": {
-    "version": "0.2.0",
+    "version": "0.3.0",
     "packages": {
       "github": {
-        "prefix": "agent-slim-0.2.0/",
+        "prefix": "agent-slim-0.3.0/",
         "include": [
           "SKILL.md",
           "README.md",
@@ -186,10 +200,14 @@
     "references/adapter-contract.md",
     "references/baseline-20261109.json",
     "references/budgets.md",
+    "references/case-workbuddy.md",
     "references/context-model.md",
+    "references/generic-playbook.md",
     "references/integration-routing.md",
     "references/mcp-measure.md",
+    "references/measurement.md",
     "references/routing-index.md",
+    "schemas/layout.schema.json",
     "schemas/plan.schema.json",
     "schemas/transaction-manifest.schema.json",
     "schemas/verification.schema.json",
@@ -237,6 +255,7 @@
     "tests/test_adapter.py",
     "tests/test_audit.py",
     "tests/test_injection_gate.py",
+    "tests/test_layout.py",
     "tests/test_release.py",
     "tests/test_s4_e2e.py",
     "tests/test_workflow.py"

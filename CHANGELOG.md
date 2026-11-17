@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.3.0 — 2026-11-17
+
+通用宿主版。0.2.0 的注入测量、漂移状态机与发布闸门全部保留；本版把"只认两类内置布局"改成"任何 Agent 都能接入"，并补齐通用手法与度量口径。
+
+### 新增
+
+- `--layout layout.json`：声明常驻文件（`hot`）、技能根、规则根、会话根、日志根、备份根。内置分支认不出的 Agent 不必改代码即可跑 `audit / plan / apply / verify / restore`。`host` 与 `audit` 都可传，`host` 会回显声明内容。
+- `schemas/layout.schema.json`：布局字段、上限与默认值。
+- `references/generic-playbook.md`：六类膨胀源（规则 / 记忆 / 技能 / 工具 / 文档 / 冷数据）× 五类手法（压缩 / 外移留指针 / 去重 / 裁剪暴露面 / 归档），逐类给识别信号、动作与保体验红线，附常见反模式。
+- `references/measurement.md`：三本账分开记、不依赖宿主的常驻测法、同类任务账单对比、日/月换算公式、报告模板、证明"体验没变"的四项证据。
+- `references/case-workbuddy.md`：一次完整瘦身的落地记录（结构差异、七阶段、逐块数字、卡点与回滚）。定位是参照物，不是使用前提。
+- `tests/test_layout.py`：布局驱动、告警替换、默认路径不变、路径逃逸、坏文件与命令回显共 7 项。
+
+### 变化
+
+- `SKILL.md` 重写：从"某个 Agent 的工具"改为"任何 Agent 的方法"，新增"六类源 × 五类手法"和"体验不变的底线"；发布闸门与注入测量章节保留。`description` 压到 41 字，`SKILL.md` 7,083 B，均在闸门内。
+- 布局接管 `hot` 列表后，缺失文件报通用码 `HOT_FILE_MISSING`，不再误报 `AGENTS_MISSING` / `MEMORY_SUMMARY_MISSING` / `RULES_INDEX_MISSING`。
+- 布局路径校验：绝对路径、`~` 开头、Windows 盘符与 `..` 段一律拒绝并返回退出码 64。判定基于原始值，先剥分隔符会把 `/tmp/x` 变成相对路径而放行。
+- `manifest.json`：hosts 改为 `codex` / `workbuddy`（内置布局）+ `described`（布局文件）；entrypoints 增加通用手法、度量、案例与布局 schema。
+- `docs/usage.md` 新增第 3 节布局说明（后续章节顺移），并修掉上一版遗留的重复章节号。
+
+### 实测
+
+- 默认路径无回归：不传 `--layout` 时 Codex 仍为 `host=codex`、hot 67 / warm 335 / cold 5 类。
+- 布局生效：第二个 Agent 上 Hot 23→28 条、2,985→5,497 tok，常驻记忆与身份文件第一次被计入；3 条厂商专属误报告警归零。基线偏小会让后续百分比整体虚高。
+- `python3 -m unittest discover -s tests`：44 项通过。
+
+### 已知限制
+
+- 本版出包环境没有 `codex` 命令，`measure_prompt.py --gate 57344` 与 `injection_state.py` 的真实 measurement 分支未能执行，按规矩记 `UNMEASURED`，不写成 PASS；`self_test.py` 中依赖 `codex` 的 6 项同样未验证，其余 3 项（看板求和、token 观测过滤、样本不足不报节省）PASS。
+- 真实宿主 test-prompts 仍未提供，触发/路由回归只能是 `PARTIAL`。
+
 ## 0.2.0 — 2026-11-10
 
 注入测量与发布闸门版。保留 0.1.x 的整体盘点、可逆执行和回滚能力，新增 Codex 固定注入的只读测量、漂移状态机和发布前瘦身闸门。

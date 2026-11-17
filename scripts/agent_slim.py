@@ -21,12 +21,12 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 try:
     import agent_slim_workflow as workflow
-    from agent_slim_adapter import probe_codex_home
+    from agent_slim_adapter import detect_home_kind, probe_codex_home, probe_home
 except ImportError as exc:  # pragma: no cover - packaging failure is an IO error
     raise SystemExit("agent_slim_workflow.py and agent_slim_adapter.py are required next to agent_slim.py") from exc
 
 SCHEMA_VERSION = "1.0"
-TOOL_VERSION = "0.2.0"
+TOOL_VERSION = "0.3.0"
 DEFAULT_MAX_DEPTH = 8
 TOKENS_PER_CHAR = 0.6
 MAX_TEXT_BYTES = 8 * 1024 * 1024
@@ -51,6 +51,11 @@ TEXT_SUFFIXES = {
 }
 
 LAYER_ORDER = {"hot": 0, "warm": 1, "cold": 2}
+
+# Generic layout description: any agent can declare where its resident context,
+# skills, sessions and logs live instead of relying on a known vendor layout.
+LAYOUT_CATEGORIES = {"instructions", "rules", "memory", "tools", "docs"}
+MAX_LAYOUT_ENTRIES = 200
 
 
 class CliParser(argparse.ArgumentParser):
@@ -101,7 +106,10 @@ def inside(path: Path, root: Path) -> bool:
 
 
 def stable_slug(value: str, limit: int = 110) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    # ASCII alnum stays as before so existing Codex-side ids never change; CJK
+    # ranges are preserved because dropping them collapsed every Chinese-named
+    # file in one directory onto a single id (54 references/ files -> 1 id).
+    slug = re.sub(r"[^a-z0-9\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+", "-", value.lower()).strip("-")
     if not slug:
         slug = "item"
     if len(slug) > limit:
@@ -956,9 +964,26 @@ def add_disk_inventory(
     items: Dict[str, Dict[str, Any]],
     candidates: List[Dict[str, Any]],
     now: datetime,
+    host_kind: str = "codex",
+    layout: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     disk: Dict[str, Any] = {"bytes": 0, "fileCount": 0, "categories": {}}
-    session_roots = [("sessions", home / "sessions"), ("archived-sessions", home / "archived_sessions")]
+    if layout and (layout.get("sessionRoots") or layout.get("logRoots")):
+        # A described layout wins over vendor guesses: every declared root keeps
+        # the same category so the audit contract shape does not change.
+        session_roots = [("sessions", home / root) for root in layout.get("sessionRoots") or []]
+        log_roots = [home / root for root in layout.get("logRoots") or []]
+        if not session_roots:
+            add_unknown(unknowns, "SESSION_ROOT_NOT_DESCRIBED", "The layout declares no session root.", "sessionRoots")
+    elif host_kind == "workbuddy":
+        # WorkBuddy stores sessions under workspace/sessions and keeps perf
+        # traces beside logs; both map onto the existing categories so the
+        # audit contract keeps its shape.
+        session_roots = [("sessions", home / "workspace" / "sessions")]
+        log_roots = [home / "logs", home / "traces"]
+    else:
+        session_roots = [("sessions", home / "sessions"), ("archived-sessions", home / "archived_sessions")]
+        log_roots = [home / "log", home / "logs"]
     for label, root in session_roots:
         files = scan_tree(root, max_depth, warnings, "DISK_SCAN_FAILED")
         if not files:
@@ -993,8 +1018,13 @@ def add_disk_inventory(
         disk["bytes"] += item["bytes"]
         disk["fileCount"] += item["meta"]["fileCount"]
 
-    backup_root = home / "backups"
-    backup_files = scan_tree(backup_root, max_depth, warnings, "DISK_SCAN_FAILED")
+    if layout and layout.get("backupRoots"):
+        backup_roots = [home / root for root in layout.get("backupRoots") or []]
+    else:
+        backup_roots = [home / "backups"]
+    backup_files: List[Path] = []
+    for backup_root in backup_roots:
+        backup_files.extend(scan_tree(backup_root, max_depth, warnings, "DISK_SCAN_FAILED"))
     if backup_files:
         item = cold_item("backups", backup_files, "backups", "cold", "R2", "move-with-manifest")
         items[item["id"]] = item
@@ -1013,8 +1043,8 @@ def add_disk_inventory(
         add_unknown(unknowns, "BACKUP_ROOT_NOT_FOUND", "Backup root is not present or empty.", "backups/")
 
     log_files: List[Path] = []
-    for label in ("log", "logs"):
-        log_files.extend(scan_tree(home / label, max_depth, warnings, "DISK_SCAN_FAILED"))
+    for root in log_roots:
+        log_files.extend(scan_tree(root, max_depth, warnings, "DISK_SCAN_FAILED"))
     if log_files:
         item = cold_item("logs", log_files, "logs", "cold", "R2", "rotation-plan-required")
         items[item["id"]] = item
@@ -1128,9 +1158,96 @@ def build_summary(
     }
 
 
-def audit_home(home: Path, max_depth: int = DEFAULT_MAX_DEPTH, now: Optional[datetime] = None) -> Dict[str, Any]:
-    """Run a read-only inventory against a Codex Home directory."""
+def _layout_rel_path(value: Any, warnings: List[Dict[str, Any]], field: str) -> Optional[str]:
+    """Accept only home-relative paths; absolute, home-escaped and empty entries are dropped."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    original = value.strip()
+    normalized = original.replace("\\", "/")
+    # Judge absoluteness on the raw value: stripping separators first would turn
+    # "/tmp/x" into a relative path and silently accept an escape.
+    drive_prefixed = bool(re.match(r"^[A-Za-z]:", normalized))
+    if original.startswith("~") or normalized.startswith("/") or drive_prefixed or Path(normalized).is_absolute():
+        add_warning(warnings, "LAYOUT_PATH_REJECTED", "A layout path must stay inside the audited home.", field)
+        return None
+    raw = normalized.strip("/")
+    if not raw or ".." in Path(raw).parts:
+        add_warning(warnings, "LAYOUT_PATH_REJECTED", "A layout path must stay inside the audited home.", field)
+        return None
+    return raw
+
+
+def load_layout(path: Optional[str], warnings: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Load an optional layout description so the audit is not tied to one vendor structure.
+
+    The file is optional.  When absent, vendor detection keeps working exactly as
+    before; when present it only replaces where things live, never what counts as
+    Hot/Warm/Cold or which actions are allowed.
+    """
+    if not path:
+        return None
+    try:
+        payload = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        add_warning(warnings, "LAYOUT_UNREADABLE", "The layout file could not be read as JSON.", "<layout>")
+        return None
+    if not isinstance(payload, dict):
+        add_warning(warnings, "LAYOUT_INVALID", "The layout file must contain a JSON object.", "<layout>")
+        return None
+
+    hot: List[Dict[str, str]] = []
+    entries = payload.get("hot") or []
+    if not isinstance(entries, list):
+        add_warning(warnings, "LAYOUT_INVALID", "layout.hot must be a list.", "hot")
+        entries = []
+    for entry in entries[:MAX_LAYOUT_ENTRIES]:
+        if isinstance(entry, str):
+            entry = {"path": entry}
+        if not isinstance(entry, dict):
+            continue
+        rel = _layout_rel_path(entry.get("path"), warnings, "hot")
+        if rel is None:
+            continue
+        category = str(entry.get("category") or "instructions").strip().lower()
+        if category not in LAYOUT_CATEGORIES:
+            category = "docs"
+        loaded_when = str(entry.get("loadedWhen") or "every-turn").strip() or "every-turn"
+        hot.append({"path": rel, "category": category, "loadedWhen": loaded_when})
+
+    def roots(field: str) -> List[str]:
+        values = payload.get(field) or []
+        if isinstance(values, str):
+            values = [values]
+        if not isinstance(values, list):
+            add_warning(warnings, "LAYOUT_INVALID", "layout.{} must be a list.".format(field), field)
+            return []
+        cleaned: List[str] = []
+        for value in values[:MAX_LAYOUT_ENTRIES]:
+            rel = _layout_rel_path(value, warnings, field)
+            if rel and rel not in cleaned:
+                cleaned.append(rel)
+        return cleaned
+
+    return {
+        "host": str(payload.get("host") or "custom").strip() or "custom",
+        "hot": hot,
+        "skillRoots": roots("skillRoots") or ["skills"],
+        "sessionRoots": roots("sessionRoots"),
+        "logRoots": roots("logRoots"),
+        "backupRoots": roots("backupRoots"),
+        "ruleRoots": roots("ruleRoots") or ["rules"],
+    }
+
+
+def audit_home(
+    home: Path,
+    max_depth: int = DEFAULT_MAX_DEPTH,
+    now: Optional[datetime] = None,
+    layout: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Run a read-only inventory against any agent home, described by layout or detected."""
     home = home.expanduser().resolve()
+    host_kind = str(layout.get("host")) if layout else detect_home_kind(home)
     current = now or utc_now()
     warnings: List[Dict[str, Any]] = []
     unknowns: List[Dict[str, Any]] = []
@@ -1151,10 +1268,11 @@ def audit_home(home: Path, max_depth: int = DEFAULT_MAX_DEPTH, now: Optional[dat
             "createdAt": iso_time(current),
             "mode": "dry-run",
             "host": {
-                "kind": "codex",
+                "kind": host_kind,
                 "home": str(home),
                 "homeSource": "argument",
-                "adapter": probe_codex_home(home, "argument"),
+                "adapter": probe_home(home, "argument"),
+                "layoutDescribed": layout is not None,
             },
             "scope": {"maxDepth": max_depth, "pathMode": "home-relative", "sessionContentRead": False},
             "tokenEstimate": {
@@ -1214,12 +1332,22 @@ def audit_home(home: Path, max_depth: int = DEFAULT_MAX_DEPTH, now: Optional[dat
             items[plugin_item_value["id"]] = plugin_item_value
     plugin_records.sort(key=lambda record: (record["marketplace"], record["name"]))
 
-    # Hot startup files and the resident rule graph.
-    hot_queue: List[Tuple[Path, str, str]] = [
-        (home / "AGENTS.md", "instructions", "every-turn"),
-        (home / "rules" / "index.md", "rules", "startup-rule-index"),
-        (home / "memories" / "memory_summary.md", "memory", "startup-memory-summary"),
-    ]
+    rule_roots = (layout.get("ruleRoots") if layout else None) or ["rules"]
+    skill_roots = (layout.get("skillRoots") if layout else None) or ["skills"]
+
+    # Hot startup files and the resident rule graph.  A layout description replaces
+    # the vendor default list; without one the legacy vendor list is used unchanged.
+    hot_described = bool(layout and layout.get("hot"))
+    hot_queue: List[Tuple[Path, str, str]] = []
+    if hot_described:
+        for entry in layout.get("hot") or []:
+            hot_queue.append((home / entry["path"], entry["category"], entry["loadedWhen"]))
+    else:
+        hot_queue = [
+            (home / "AGENTS.md", "instructions", "every-turn"),
+            (home / "rules" / "index.md", "rules", "startup-rule-index"),
+            (home / "memories" / "memory_summary.md", "memory", "startup-memory-summary"),
+        ]
     hot_seen = set()
     while hot_queue:
         path, category, loaded_when = hot_queue.pop(0)
@@ -1228,7 +1356,9 @@ def audit_home(home: Path, max_depth: int = DEFAULT_MAX_DEPTH, now: Optional[dat
             continue
         hot_seen.add(rel)
         if not path.exists():
-            if category == "instructions":
+            if hot_described:
+                add_warning(warnings, "HOT_FILE_MISSING", "A declared resident context file was not found.", rel)
+            elif category == "instructions":
                 add_warning(warnings, "AGENTS_MISSING", "AGENTS.md was not found.", "AGENTS.md")
             elif category == "rules":
                 add_warning(warnings, "RULES_INDEX_MISSING", "rules/index.md was not found.", "rules/index.md")
@@ -1271,11 +1401,15 @@ def audit_home(home: Path, max_depth: int = DEFAULT_MAX_DEPTH, now: Optional[dat
                 if resolved.get("scope") != "inside-home" or not target_rel:
                     continue
                 target_path = home / target_rel
-                if target_path.is_file() and target_path.suffix.lower() == ".md" and inside(target_path, home / "rules"):
+                if target_path.is_file() and target_path.suffix.lower() == ".md" and any(
+                    inside(target_path, home / root) for root in rule_roots
+                ):
                     hot_queue.append((target_path, "rules", "referenced-by-resident-rule"))
 
     # Discover skills from the user skill root and every enabled plugin's skill files.
-    skill_paths = discover_skill_files(home / "skills", 2)
+    skill_paths: List[Path] = []
+    for skill_root in skill_roots:
+        skill_paths.extend(discover_skill_files(home / skill_root, 2))
     for plugin_path in plugin_skill_paths:
         if plugin_path.is_file():
             skill_paths.append(plugin_path)
@@ -1303,7 +1437,7 @@ def audit_home(home: Path, max_depth: int = DEFAULT_MAX_DEPTH, now: Optional[dat
     duplicate_hot_rules(items, warnings, candidates)
 
     # Cold disk metadata.  No file under sessions/archived_sessions is opened.
-    disk = add_disk_inventory(home, max_depth, warnings, unknowns, items, candidates, current)
+    disk = add_disk_inventory(home, max_depth, warnings, unknowns, items, candidates, current, host_kind, layout)
     add_unknown(
         unknowns,
         "SESSION_BODY_NOT_READ",
@@ -1333,6 +1467,10 @@ def audit_home(home: Path, max_depth: int = DEFAULT_MAX_DEPTH, now: Optional[dat
         "Plugin declarations are file-based evidence; live session tool snapshots are not available.",
         "Session content is never read by this audit.",
     ]
+    if host_kind == "workbuddy":
+        limitations.append(
+            "WorkBuddy cold storage covers workspace/sessions plus logs/ and traces/. projects/ holds conversation history and binaries/ holds runtimes; both are excluded from the reclaim plan by design, so cold bytes are not the whole home."
+        )
     return {
         "schemaVersion": SCHEMA_VERSION,
         "tool": {"name": "agent-slim", "version": TOOL_VERSION},
@@ -1340,10 +1478,11 @@ def audit_home(home: Path, max_depth: int = DEFAULT_MAX_DEPTH, now: Optional[dat
         "createdAt": iso_time(current),
         "mode": "dry-run",
         "host": {
-            "kind": "codex",
+            "kind": host_kind,
             "home": str(home),
             "homeSource": "argument",
-            "adapter": probe_codex_home(home, "argument"),
+            "adapter": probe_home(home, "argument"),
+            "layoutDescribed": layout is not None,
         },
         "scope": {
             "maxDepth": max_depth,
@@ -1519,12 +1658,14 @@ def build_parser() -> CliParser:
     parser.add_argument("--version", action="version", version="%(prog)s " + TOOL_VERSION)
     subparsers = parser.add_subparsers(dest="command")
 
-    host = subparsers.add_parser("host", help="report proven Codex host capabilities without changing files")
-    host.add_argument("--home", default=None, help="Codex Home; also supports CODEX_HOME")
+    host = subparsers.add_parser("host", help="report proven host capabilities without changing files")
+    host.add_argument("--home", default=None, help="agent home; also supports CODEX_HOME")
+    host.add_argument("--layout", default=None, help="optional JSON layout description for an unrecognized agent")
     host.add_argument("--output", default=None, help="write JSON to a file; '-' means stdout")
 
     audit = subparsers.add_parser("audit", help="inventory Hot/Warm/Cold content without changing files")
-    audit.add_argument("--home", default=None, help="Codex Home; also supports CODEX_HOME")
+    audit.add_argument("--home", default=None, help="agent home; also supports CODEX_HOME")
+    audit.add_argument("--layout", default=None, help="optional JSON layout description for an unrecognized agent")
     audit.add_argument("--json", action="store_true", help="emit the stable JSON contract")
     audit.add_argument("--output", default=None, help="write output to a file; '-' means stdout")
     audit.add_argument("--max-depth", type=int, default=DEFAULT_MAX_DEPTH, help="maximum metadata scan depth (default: 8)")
@@ -1579,8 +1720,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     if args.command == "host":
         home, home_source = detect_codex_home(args.home)
+        layout_probe: List[Dict[str, Any]] = []
+        layout = load_layout(args.layout, layout_probe)
+        if layout_probe:
+            for item in layout_probe:
+                sys.stderr.write("{}: {}\n".format(item.get("code"), item.get("message")))
+            return EXIT_USAGE
         try:
-            workflow.emit_json(probe_codex_home(home, home_source), args.output)
+            capabilities = probe_home(home, home_source)
+            if layout:
+                capabilities = dict(capabilities)
+                capabilities["host"] = layout["host"]
+                capabilities["layoutDescribed"] = True
+                capabilities["layout"] = {
+                    "hotEntryCount": len(layout["hot"]),
+                    "skillRoots": layout["skillRoots"],
+                    "sessionRoots": layout["sessionRoots"],
+                    "logRoots": layout["logRoots"],
+                    "backupRoots": layout["backupRoots"],
+                    "ruleRoots": layout["ruleRoots"],
+                }
+            workflow.emit_json(capabilities, args.output)
         except workflow.WorkflowError as exc:
             return emit_workflow_error(exc, args.output)
         return EXIT_OK
@@ -1589,7 +1749,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if args.max_depth < 0:
             parser.error("--max-depth must be >= 0")
         home, home_source = detect_codex_home(args.home)
-        report = audit_home(home, args.max_depth)
+        layout_probe: List[Dict[str, Any]] = []
+        layout = load_layout(args.layout, layout_probe)
+        if layout_probe:
+            for item in layout_probe:
+                sys.stderr.write("{}: {}\n".format(item.get("code"), item.get("message")))
+            return EXIT_USAGE
+        report = audit_home(home, args.max_depth, layout=layout)
         report["host"]["homeSource"] = home_source
         try:
             emit_report(report, args.output, args.json)

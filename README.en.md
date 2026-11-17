@@ -35,7 +35,7 @@ Limits: description ≤45 characters, `SKILL.md` target ≤8 KB, text blocks ≤
 
 ## Status
 
-v0.1.2 remains the public version on GitHub, SkillHub and ClawHub. v0.2.0 adds read-only injection measurement and a pre-publish gate; publish status must be rechecked after upload. Codex is the first host with an audit/plan/apply/verify/restore implementation verified on a synthetic aging fixture; real-host trigger regression is still `PARTIAL` until executable test prompts are supplied. Other agents are interface-only. Install from GitHub Releases, `skillhub install agent-slim --namespace user_43faedd6`, or `clawhub install agent-slim`.
+v0.3.0 is the public version. It keeps the 0.2.0 read-only injection measurement and pre-publish gate, and makes the host layer configurable: describe any agent with `layout.json` instead of shipping code for it. Codex is the first host with an audit/plan/apply/verify/restore implementation verified on a synthetic aging fixture; real-host trigger regression is still `PARTIAL` until executable test prompts are supplied. Other agents are supported through a layout description (see `schemas/layout.schema.json`) or the shared adapter interface. Install from GitHub Releases, `skillhub install agent-slim --namespace user_43faedd6`, or `clawhub install agent-slim`.
 
 ## Documentation
 

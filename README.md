@@ -1,16 +1,19 @@
 # Agent Slim（Agent 整体瘦身师）
 
-给使用一段时间后的 Agent 做一次“体检 + 可逆减负”：先找出真正占用每轮上下文的常驻内容，再把低频资料移到按需加载区，最后用回归测试证明关键能力还在。
+给使用一段时间后的 Agent 做一次“体检 + 可逆减负”：先找出真正占用每轮上下文的常驻内容（规则、记忆、技能清单、工具 schema），再把低频资料移到按需加载区，最后用回归测试证明关键能力还在。
+
+不绑定特定 Agent：内置布局自动识别，其他 Agent 写一份 `layout.json` 描述目录即可，不用改代码。
 
 ## 安装（三平台）
 
-三个平台使用同一 slug `agent-slim`，当前版本 `0.2.0`。
+三个平台使用同一 slug `agent-slim`，当前版本 `0.3.0`。
 
 | 平台 | 安装方式 | 适用 |
 | --- | --- | --- |
-| GitHub | 下载 [agent-slim-github-v0.2.0.zip](https://github.com/lisong2003-lgtm/agent-slim/releases/tag/v0.2.0)，解压后运行 `python3 scripts/agent_slim.py --version` | 完整包，含测试与构建脚本 |
+| GitHub | 下载 [agent-slim-github-v0.3.0.zip](https://github.com/lisong2003-lgtm/agent-slim/releases/tag/v0.3.0)，解压后运行 `python3 scripts/agent_slim.py --version` | 完整包，含测试与构建脚本 |
 | SkillHub | `skillhub install agent-slim --namespace user_43faedd6 --dir "${CODEX_HOME:-$HOME/.codex}/skills"` | Codex 用户，轻量文本包 |
 | ClawHub | `clawhub --dir "${CODEX_HOME:-$HOME/.codex}/skills" install agent-slim` | ClawHub / OpenClaw 用户 |
+| 任意 Agent | 下载 GitHub 包，放到该 Agent 的 skills 目录；必要时加 `--layout layout.json` 指路 | 其他 Agent |
 
 GitHub 包的 SHA-256 以 Release 附件 `SHA256SUMS.txt` 为准；下载后执行 `shasum -a 256 -c SHA256SUMS.txt` 核对。安装后先跑只读命令：
 
@@ -61,6 +64,12 @@ python3 scripts/agent_slim.py restore --manifest <transaction>/manifest.json --a
 
 报告包含 Hot/Warm/Cold、体积、近似 Token、证据、风险、可逆性、warning 和待确认项。Token 是 `ceil(chars × 0.6)` 近似值，不是账单实测；Cold 只记磁盘。详见 [执行契约](docs/execution-contract.md) 和 [审计契约](docs/audit-json-contract.md)。
 
+## 六类源，五类手法
+
+每轮被吃掉的内容通常来自六类：常驻规则、记忆/画像、技能清单与正文、工具 schema、固定注入的文档、以及只占磁盘的冷数据。对应五类手法：**压缩、外移留指针、去重、裁剪暴露面、归档**。前四类才可能省 Token，归档只省磁盘。
+
+逐类的识别信号与红线见 [通用瘦身手记](references/generic-playbook.md)；怎么量、怎么给用户看省了多少见 [度量与报告](references/measurement.md)。
+
 ## 三层收益怎么看
 
 - **Hot**：每轮都进入上下文的规则、描述和工具说明；缩小它通常能直接减少每轮 Token。
@@ -76,6 +85,7 @@ python3 scripts/agent_slim.py restore --manifest <transaction>/manifest.json --a
 - s5 已完成 Ponytail 与技能架构师审查、发布元数据和三平台发布包；包内共享文件逐字节一致。
 - 真实宿主 test-prompts 仍未提供，触发/路由回归只能记 `PARTIAL`；不得把 fixture 结果写成真实宿主 PASS。
 - v0.2.0 为三平台公开版本，新增注入测量、漂移状态机与发布闸门；发布回查记录见 `outputs/s5-release-ready.md`。
+- v0.3.0 把宿主假设降为可配置项：新增 `layout.json` 接入任意 Agent、通用手法手册、度量报告模板与实测案例；注入测量与发布闸门保留。
 - 发布包内测试可离线运行：`python3 -m unittest discover -s tests`（fixture 随包提供，不再依赖本机生成物）。
 
 ## 文档入口
@@ -88,6 +98,10 @@ python3 scripts/agent_slim.py restore --manifest <transaction>/manifest.json --a
 - [验收标准](docs/acceptance.md)
 - [固定注入测量与发布闸门](docs/injection-measurement.md)
 - [审计 JSON 契约](docs/audit-json-contract.md)
+- [通用瘦身手记](references/generic-playbook.md)
+- [度量与报告](references/measurement.md)
+- [实测案例](references/case-workbuddy.md)
+- [布局描述 schema](schemas/layout.schema.json)
 - [适配器契约](references/adapter-contract.md)
 - [职责路由与调用契约](references/integration-routing.md)
 

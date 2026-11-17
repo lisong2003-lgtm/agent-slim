@@ -56,6 +56,17 @@
 | 隐私与内容 | skill-publisher 发布检查的隐私、涉政、身份伪装命中为 0；引用缺失为 0 | PASS |
 | 包完整性 | 三个 zip 的 SHA-256 与 `SHA256SUMS.txt` 一致 | PASS |
 
+## 布局接入验收（0.3.0）
+
+| 项目 | 验证方式 | 结果 |
+|---|---|---|
+| 默认路径无回归 | 不传 `--layout` 审计 Codex Home | PASS，`host=codex`、hot 67 / warm 335 / cold 5 类，与 0.2.0 一致 |
+| 布局生效 | 传 `--layout` 审计第二个 Agent | PASS，Hot 23→28 条、2,985→5,497 tok，常驻记忆与身份文件被计入 |
+| 误报告警消除 | 同上 | PASS，3 条厂商专属告警降为 0，缺失改用 `HOT_FILE_MISSING` |
+| 路径逃逸拒绝 | `../` 与绝对路径 | PASS，报 `LAYOUT_PATH_REJECTED`，退出码 64 |
+| 下游兼容 | 用布局审计结果跑 `plan` | PASS，动作正常生成 |
+| 注入测量闸门 | `measure_prompt.py --gate 57344` | `UNMEASURED`——出包环境无 `codex` 命令，按规矩不得写成 PASS |
+
 ## 当前证据
 
 - 开发期分阶段验收记录（s1–s4）归档在项目内阶段验收文件，不随发布包分发。
